@@ -9,26 +9,20 @@ passport.use(new GoogleStrategy({
   clientSecret: 'h7n4UrnZk18vLKjBH6uzPn0u',
   callbackURL: '/auth/google/callback'
 }, function(accessToken, refreshToken, profile, done) {
-  User.findOne({
-    'googleid': profile.id
-  }, function(err, user) {
-    if (err) return done(err);
+  User.findOne({googleid: profile.id})
+    .then(user => {
+      if (user) return user;  
 
-    if (!user) {
-      const user = new User({
+      // create user if doesn't exist yet
+      const newUser = new User({
         name: profile.displayName,
         googleid: profile.id
       });
 
-      user.save(function(err) {
-        if (err) console.log(err);
-
-        return done(err, user);
-      });
-    } else {
-      return done(err, user);
-    }
-  });
+      return user.save();
+    })
+    .then(user => done(null, user))
+    .catch(done);
 }));
 
 passport.serializeUser(function(user, done) {
