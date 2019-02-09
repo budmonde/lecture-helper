@@ -1,4 +1,19 @@
-function storyDOMObject(storyJSON, user) {
+function setNameDOMObject() {
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'input-group my-3';
+
+  const nameContent = document.createElement('input');
+  nameContent.setAttribute('type', 'text');
+  nameContent.setAttribute('placeholder', 'Your Name');
+  nameContent.setAttribute('value', 'Anonymous');
+  nameContent.className = 'form-control';
+  nameContent.setAttribute('id', 'set-name-input');
+  nameDiv.appendChild(nameContent);
+
+  return nameDiv;
+}
+
+function storyDOMObject(storyJSON) {
   const card = document.createElement('div');
   card.setAttribute('id', storyJSON._id);
   card.className = 'story card';
@@ -7,10 +22,9 @@ function storyDOMObject(storyJSON, user) {
   cardBody.className = 'card-body';
   card.appendChild(cardBody);
 
-  const creatorSpan = document.createElement('a');
+  const creatorSpan = document.createElement('span');
   creatorSpan.className = 'story-creator card-title';
   creatorSpan.innerText = storyJSON.creator_name;
-  creatorSpan.setAttribute('href', '/u/profile?' + storyJSON.creator_id);
   cardBody.appendChild(creatorSpan);
 
   const contentSpan = document.createElement('p');
@@ -27,8 +41,7 @@ function storyDOMObject(storyJSON, user) {
   commentsDiv.className = 'story-comments';
   cardFooter.appendChild(commentsDiv);
 
-  if (user._id !== undefined)
-    cardFooter.appendChild(newCommentDOMObject(storyJSON._id));
+  cardFooter.appendChild(newCommentDOMObject(storyJSON._id));
 
   return card;
 }
@@ -38,10 +51,9 @@ function commentDOMObject(commentJSON) {
   commentDiv.setAttribute('id', commentJSON._id);
   commentDiv.className = 'comment mb-2';
 
-  commentCreatorSpan = document.createElement('a');
+  commentCreatorSpan = document.createElement('span');
   commentCreatorSpan.className = 'comment-creator';
   commentCreatorSpan.innerText = commentJSON.creator_name;
-  commentCreatorSpan.setAttribute('href', '/u/profile?' + commentJSON.creator_id);
   commentDiv.appendChild(commentCreatorSpan);
 
   commentContentSpan = document.createElement('span');
@@ -59,7 +71,7 @@ function newCommentDOMObject(parent) {
   const newCommentContent = document.createElement('input');
   newCommentContent.setAttribute('type', 'text');
   newCommentContent.setAttribute('name', 'content');
-  newCommentContent.setAttribute('placeholder', 'New Comment');
+  newCommentContent.setAttribute('placeholder', 'Your Response/Follow-up');
   newCommentContent.setAttribute('id', parent + '-comment-input');
   newCommentContent.className = 'form-control';
   newCommentDiv.appendChild(newCommentContent);
@@ -76,7 +88,7 @@ function newCommentDOMObject(parent) {
 
   const newCommentSubmit = document.createElement('button');
   newCommentSubmit.innerHTML = 'Submit';
-  newCommentSubmit.className = 'btn btn-outline-primary';
+  newCommentSubmit.className = 'btn btn-outline-dark';
   newCommentSubmit.setAttribute('story-id', parent);
   newCommentSubmit.addEventListener('click', submitCommentHandler);
   newCommentButtonDiv.appendChild(newCommentSubmit);
@@ -85,9 +97,11 @@ function newCommentDOMObject(parent) {
 }
 
 function submitCommentHandler() {
+  const nameInput = document.getElementById('set-name-input');
   const commentInput = document.getElementById(this.getAttribute('story-id') + '-comment-input');
 
   const data = {
+    name: nameInput.value,
     content: commentInput.value,
     parent: this.getAttribute('story-id')
   };
@@ -102,7 +116,7 @@ function newStoryDOMObject() {
 
   const newStoryContent = document.createElement('input');
   newStoryContent.setAttribute('type', 'text');
-  newStoryContent.setAttribute('placeholder', 'New Story');
+  newStoryContent.setAttribute('placeholder', 'New Question');
   newStoryContent.className = 'form-control';
   newStoryContent.setAttribute('id', 'story-content-input')
   newStoryDiv.appendChild(newStoryContent);
@@ -113,7 +127,7 @@ function newStoryDOMObject() {
 
   const newStorySubmit = document.createElement('button');
   newStorySubmit.innerHTML = 'Submit';
-  newStorySubmit.className = 'btn btn-outline-primary';
+  newStorySubmit.className = 'btn btn-outline-dark';
   newStorySubmit.addEventListener('click', submitStoryHandler);
   newStoryButtonDiv.appendChild(newStorySubmit);
 
@@ -121,9 +135,11 @@ function newStoryDOMObject() {
 }
 
 function submitStoryHandler() {
+  const nameInput = document.getElementById('set-name-input');
   const newStoryInput = document.getElementById('story-content-input');
 
   const data = {
+    name: nameInput.value,
     content: newStoryInput.value,
   };
 
@@ -131,14 +147,14 @@ function submitStoryHandler() {
   newStoryInput.value = '';
 }
 
-function renderStories(user) {
-  if (user._id !== undefined)
-    document.getElementById('new-story').appendChild(newStoryDOMObject());
+function renderStories() {
+  document.getElementById('set-user').appendChild(setNameDOMObject());
+  document.getElementById('new-story').appendChild(newStoryDOMObject());
 
   const storiesDiv = document.getElementById('stories');
   get('/api/stories', {}).then(stories => {
     for (const story of stories) {
-      storiesDiv.prepend(storyDOMObject(story, user));
+      storiesDiv.prepend(storyDOMObject(story));
     }
 
     // Fire GET /api/comment for every story

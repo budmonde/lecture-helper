@@ -1,3 +1,8 @@
+// load environment variables
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').load();
+}
+
 // libraries
 const http = require('http');
 const bodyParser = require('body-parser');
@@ -7,7 +12,6 @@ const socketio = require('socket.io');
 
 // local dependencies
 const db = require('./db');
-const passport = require('./passport');
 const views = require('./routes/views');
 const api = require('./routes/api');
 
@@ -25,29 +29,6 @@ app.use(session({
   resave: 'false',
   saveUninitialized: 'true'
 }));
-
-// hook up passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-// authentication routes
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile'] }));
-
-app.get(
-  '/auth/google/callback',
-  passport.authenticate(
-    'google',
-    { failureRedirect: '/login' }
-  ),
-  function(req, res) {
-    res.redirect('/');
-  }
-);
-
-app.get('/logout', function(req, res) {
-  req.logout();
-  res.redirect('/');
-});
 
 // set routes
 app.use('/', views);
