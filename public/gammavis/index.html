@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <title>Gamma encoding</title>
+    <style>
+    body {
+      color:black;
+      font-family:arial,helvetica, sans-serif;
+      font-size:12px;
+      margin:20px;
+      padding:0px;
+    }
+    .centerbody {
+      margin-left:auto; 
+      margin-right:auto;
+      width:980px; 
+      height:825px;
+      border: 10px solid #b3c9ce;
+      border-radius:5px;
+      padding:0px;
+      box-shadow: 0px 3px 7px #506987;
+    }
+    .mainbody{
+      margin-left:auto; 
+      margin-right:auto;
+      width:980px; 
+      height:800px;
+      border: 0px solid #C0D9D9;
+      border-radius:0px;
+      padding:0px;
+      box-shadow: 0px 3px 7px #506987;
+    }
+    .header{
+      background-color: #b3c9ce;
+      height:25px;
+    }
+
+    .left{
+      float:left; 
+      width:400px;
+      margin:20px;
+
+    }
+
+    .right{
+      float:left; 
+      width:500px;
+      margin:20px;
+    }
+    </style>
+
+  </head>
+  <body>
+    <div class="centerbody">
+
+      <div class="header">
+        <font size="1"><strong>Gamma (&#x003B3;) Encoding</strong></font> </div>
+      <div class="mainbody">
+
+
+        <div class="left">
+
+          <span id="bright"></span>
+          See effects of gamma encoding for 
+          <select id="dropdown" onchange="changePic(this.value)">
+            <option value="skippy8">default</option>
+            <option value="skippy6">high contrast</option>
+            <option value="skippy3">dark</option>
+            <!--<option value="skippy4">light</option>-->
+            <option value="skippy5">gradient</option>
+            <option value="skippy7">gradient 2</option>
+            <!--<option value="skippy6">test1</option>
+              <option value="skippy7">test2</option>
+              <option value="skippy8">test3</option>-->
+          </select> 
+          picture of skippy:<br/>
+          <canvas id="picture" onclick="setLine()" width="400" height="620" style="border: 0px solid #000000;"></canvas>
+          <br/><br/>
+          <div style="text-align:right">
+            <button id="graphU" type="button" onclick="graphAll()">update graph</button>
+            <br/>
+            Pick how much data to scan: &nbsp; &nbsp;<span id="len">400</span>px
+            <br/>
+            <font size="2">
+              0 <input id="lineL" type="range" min="0" max="400" step="100" value="400" onchange="changeLine(this.value)"> </input> 400 </font>
+            <br/>
+            Pick color data to show: 
+            <button id="rcontrol" type="button" onclick="changeCol(0)">red</button>
+            <button id="gcontrol" type="button" onclick="changeCol(1)">green</button>
+            <button id="bcontrol" type="button" onclick="changeCol(2)">blue</button>
+          </div>
+
+        </div>
+
+
+        <div class="right"><br/>
+          <label>Pick a value for &#x003B3;:</label> &nbsp; &nbsp; <span id="test">2.2</span>
+          <br/><font size="2">
+            0 <input id="gamma" type="range" min="0" max="7" step=".1" value="2.2" onchange="getVal(this.value)"> </input> 7 </font>
+          &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+          <button id="control" type="button" onclick="changeVal(1)">&#x003B3;=1</button>
+          &nbsp; &nbsp;
+          <button id="control" type="button" onclick="changeVal(2.2)">&#x003B3;=2.2</button>
+
+          <br/><br/>
+
+          <label>Pick how many bits:</label> &nbsp; &nbsp; <span id="info">4</span>
+          <br/><font size="2">
+            0 <input id="bits" type="range" min="0" max="8" step="1" value="4" onchange="getBits(this.value)"> </input> 8</font>
+
+          <br/><br/>
+          Function plotted: x^(1/&#x003B3;) <br/>
+          <!--span for error checking-->
+          <span id="tempo"> </span>
+          <br/>
+          <span id="count"></span>
+
+          <canvas id="graph" width="500" height="300" style="border: 1px solid #ffffff;"></canvas>
+
+          <canvas id="graph2" width="500" height="300" style="border: 0px solid #000000;"></canvas>
+        </div>
+
+
+
+      </div>
+    </div>
+    <br/><br/>
+
+    <script type="text/javascript">
+var c=document.getElementById("graph");
+var context=c.getContext('2d');
+
+var s=document.getElementById("picture");
+var scontext=s.getContext("2d");
+
+var c2=document.getElementById("graph2");
+var context2=c2.getContext('2d');
+
+var img=new Image();
+img.src="skippy8.jpg";
+
+var xmax=1;
+var xmin=0;
+var ymax=1;
+var ymin=0;
+var xscale=(context.canvas.width)/xmax;
+var yscale=(context.canvas.height)/ymax;
+
+var gamma=2.2;
+var bits=4;
+
+var xmaxG=c.width;
+var ymaxG=255;
+var xminG=0,ymin=0;
+var xscaleG=(c2.width-60)/(xmaxG-xminG);
+var yscaleG=(c2.height-50)/ymaxG;
+
+var w,h,mousex,mousey;
+
+var redD1=new Array();
+var redD2=new Array();
+var greenD1=new Array();
+var greenD2=new Array();
+var blueD1=new Array();
+var blueD2=new Array();
+
+var graphR=true;
+var graphG=graphB=false;
+
+var lineLength=400;
+
+
+var entries=new Array();
+function addEntries(){
+  var step = xmax/(xmax*xscale-50);
+  for(var i=0;i<xmax*xscale-50;i++){
+    var temp=i*step;
+    entries.push(temp);
+  }
+}
+function getVal(m){
+  gamma=m;
+  document.getElementById("test").innerHTML=m;
+  draw(gamma,bits);
+  imageChange();
+}
+function getBits(b){
+  bits=b;
+  document.getElementById("info").innerHTML=b;
+  draw(gamma,bits);
+  imageChange();
+}
+
+
+function drawAxis(con,ymax,xmax,xmin,xlabel,ylabel){
+  con.save();
+  con.strokeStyle="black";
+  //draw y axis
+  con.beginPath();
+  con.moveTo(50,0);
+  con.lineTo(50,con.canvas.height-50);
+  con.stroke();
+
+  //draw x axis
+  con.beginPath();
+  con.moveTo(50,con.canvas.height-50);
+  con.lineTo(con.canvas.width,con.canvas.height-50);
+  con.stroke();
+
+  con.font="11px sans-serif";
+  con.fillStyle="#000000";
+  //label y axis scale
+  con.textAlign="right";
+  for(var j=0;j<11;j++){
+    var temp=ymax-(j)*(ymax/10)
+      temp=Math.round(temp*100)/100;
+    con.fillText(temp,45,j*((con.canvas.height-50)/10)+10);
+  }
+  //label x axis scale
+  con.textAlign="left";
+  for(var k=0;k<11;k++){
+    var temp=xmin+k*((xmax-xmin)/10);
+    temp=Math.round(temp*100)/100;
+    con.fillText(temp,k*((con.canvas.width-60)/10)+40,con.canvas.height-40);
+  }
+
+  //label axis with names
+  con.font="13px sans-serif";
+  con.textAlign="center";
+  con.fillText(xlabel,(con.canvas.width-5)/2,con.canvas.height-20);
+  con.translate(10,(con.canvas.height-50)/2);
+  con.rotate(-Math.PI/2);
+  con.fillText(ylabel,0,0);
+  con.restore();
+}
+
+
+function graphing(g){
+  //ymax=Math.pow(.5,1/g)*1.2;
+  //yscale=(context.canvas.height)/ymax;
+
+  context.save();
+  context.clearRect(0,0,800,700);
+  context.strokeStyle="black";
+  context.lineWidth=1;
+  context.beginPath();
+  context.moveTo(xmin*xscale+50,ymax*yscale-50);
+
+  //document.getElementById("test").innerHTML=g;
+  gamma=g;
+  for(var i=0;i<xmax*xscale;i++){
+    var x=entries[i]*xscale+50;
+    var y=ymax*yscale-Math.pow(entries[i],(1/g))*yscale-50;
+    context.lineTo(x,y);
+  }
+  context.stroke();
+  drawAxis(context,ymax,xmax,xmin,"original brightness","gamma encoded brightness");
+  context.restore();
+}
+function quantize(b){
+  context.save();
+  var levels=Math.pow(2,bits);
+  context.strokeStyle="black";
+  context.lineWidth=1;
+  for (var i=0; i<levels; i++){
+    var yval=i*(ymax/levels);
+    var jval=0;
+    var olderror=5;
+    var checking;
+    for (var j=0;j<entries.length;j++){
+      var val=Math.pow(j/xscale,(1/gamma));
+      //alert(val);
+      if (Math.abs(val-yval)<.01 && olderror>Math.abs(val-yval)){
+        //alert(j + " , " + val + ", " + yval);
+        //alert("found! " + j + " y coord: " + (ymax*yscale-yval*yscale));
+        olderror=Math.abs(val-yval);
+        jval=j
+          checking=val
+      }
+    }
+    context.beginPath();
+    context.moveTo(50,ymax*yscale-yval*yscale-50);
+    context.lineTo(jval+50,ymax*yscale-yval*yscale-50);
+    context.lineTo(jval+50,c.height-50);
+    context.stroke();
+    //alert(jval/xscale + ", " + yval + ", blahblah " + checking);
+  }
+  context.restore();
+}
+
+function draw(g,b){
+  context.save();
+  context.clearRect(0,0,800,700);
+  graphing(gamma);
+  quantize(bits);
+  context.restore();
+}
+
+onLoad=addEntries();
+onLoad=graphing(2.2);
+onLoad=quantize(5);
+//onLoad=imageChange();
+
+function changeVal(newval){
+  document.getElementById("gamma").value=newval;
+  getVal(newval);
+  graphAll();
+}
+
+//IMAGE PROCESSING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+onLoad=drawAxis(context2,ymaxG,xmaxG,xminG,"x position in pixels","RGB value");
+
+img.onload = function(){
+  w=img.width*(4/5);
+  h=img.height*(4/5);
+  scontext.drawImage(img,0,0,w,h);
+  scontext.drawImage(img,0,h+10,w,h);
+  imageChange();
+  xmaxG=w;
+  xscaleG=(c2.width-60)/(xmaxG-xminG);
+
+  var data=scontext.getImageData(0,0,w,h);
+  redD1=getData(data)[0].slice();
+  greenD1=getData(data)[1].slice();
+  blueD1=getData(data)[2].slice();
+
+
+};
+
+function changePic(which){
+  img.src="gammapics/"+which+".jpg";
+  scontext.clearRect(0,0,800,1000);
+  scontext.drawImage(img,0,0,w,h);
+  scontext.drawImage(img,0,h+10,w,h);
+  imageChange();
+
+  clickx=clicky=-500;
+  var data=scontext.getImageData(0,0,w,h);
+  redD1=getData(data)[0].slice();
+  greenD1=getData(data)[1].slice();
+  blueD1=getData(data)[2].slice();
+
+}
+
+function mmouse(event){
+  mousex=event.pageX-s.offsetLeft;
+  mousey=event.pageY-s.offsetTop;
+  drawLine();
+
+}
+s.onmousemove=mmouse;
+
+function drawPic(){
+  scontext.drawImage(img,0,0,w,h);
+  scontext.drawImage(img,0,h+10,w,h);
+  imageChange();
+}
+
+function changeLine(l){
+  lineLength=parseInt(l);
+  document.getElementById("len").innerHTML=l;
+  drawLine();
+
+}
+
+function changeCol(col){
+  if (col==0){
+    if(graphR){
+      graphR=false;}
+    else {graphR=true;}
+  }
+  else if (col==1){
+    if(graphG){
+      graphG=false;}
+    else {graphG=true;}
+  }
+  else if(col==2){
+    if(graphB){
+      graphB=false;}
+    else {graphB=true;}
+  }
+  setLine();
+}
+
+function drawLine(){
+  drawPic();
+  scontext.strokeStyle="white";
+  if (mousey<h){
+    if (lineLength==400){
+      x=0;}
+    else {x=mousex;}
+    var temp=x+lineLength;
+    scontext.beginPath();
+    scontext.moveTo(x,mousey);
+    scontext.lineTo(temp,mousey);
+    scontext.stroke();
+  }
+
+  scontext.strokeStyle="blue";
+  scontext.beginPath();
+  scontext.moveTo(clickx,clicky);
+  scontext.lineTo(clickx+lineLength,clicky);
+  scontext.stroke();
+
+  scontext.strokeStyle="blue";
+  scontext.beginPath();
+  scontext.moveTo(clickx,clicky+h+10);
+  scontext.lineTo(clickx+lineLength,clicky+h+10);
+  scontext.stroke();
+}
+
+function setLine(){
+  drawPic();
+  if (mousey<h && mousex<w){
+    clickx=mousex;
+    clicky=mousey;}
+  if (lineLength==400){
+    clickx=0;}
+  xminG=clickx;
+  if (clickx+lineLength > w){
+    xmaxG=w;}
+  else {
+    xmaxG=clickx+lineLength;}
+  xscaleG=(c2.width-60)/(xmaxG-xminG)
+    graphAll();
+
+
+}
+
+function graphAll(){
+  drawPic();
+
+
+  context2.clearRect(0,0,800,700);
+  drawAxis(context2,ymaxG,xmaxG,xminG,"x position in pixels","RGB value")
+    if (graphR){graphingG("red",redD1,true);}
+  if (graphG){graphingG("green",greenD1,true);}
+  if (graphB){graphingG("blue",blueD1,true);}
+
+
+  var data2=scontext.getImageData(0,h+10,w,h);
+  redD2=getData(data2)[0].slice();
+  greenD2=getData(data2)[1].slice();
+  blueD2=getData(data2)[2].slice();	
+
+  drawLine();
+  if (graphR){graphingG("fuchsia",redD2,false);}
+  if (graphG){graphingG("lime",greenD2,false);}
+  if (graphB){graphingG("cyan",blueD2,false);}
+}
+
+
+function imageChange(){
+  lookUpTable();
+  changeB();
+
+}
+
+var RGBgamma=new Array();
+function lookUpTable(){
+  var buckets=Math.pow(2,bits);
+  RGBgamma.length=0;
+  for (var i=1;i<256;i++){
+    //normalize & take to new gamma
+    var temp=Math.pow((i/255),(2.2/gamma));
+
+    //quantize
+    temp=Math.round(buckets*temp);
+    temp=temp/buckets;
+    temp=Math.pow(temp,(gamma/2.2));
+    if (temp>255){temp=255;}
+    RGBgamma.push(temp*255);
+
+  }
+
+}
+
+function changeB(){
+  var pdata=scontext.getImageData(0,0,w,h);
+  for (var x=0;x<pdata.width; x++){
+
+    for(var y=0;y<pdata.height;y++){
+      //index of pixel in array
+      var idx=(x+y*s.width)*4;
+
+      //rgb values
+      var r=pdata.data[idx+0];
+      var g=pdata.data[idx+1];
+      var b=pdata.data[idx+2];
+      //change them
+      pdata.data[idx+0]=RGBgamma[r-1];
+      pdata.data[idx+1]=RGBgamma[g-1];
+      pdata.data[idx+2]=RGBgamma[b-1];
+
+    }
+  }
+
+  scontext.putImageData(pdata,0,h+10);	
+}
+
+var redD=new Array();
+var greenD=new Array();
+var blueD=new Array();
+
+//retrieves data for each pixel of entire picture
+function getData(pdata){
+  redD.length=0;
+  greenD.length=0;
+  blueD.length=0;
+  for (var x=0; x<pdata.width; x++){
+    var red=new Array();
+    var green=new Array();
+    var blue=new Array();
+    red.length=0;
+    green.length=0;
+    blue.length=0;
+    for(var y=0;y<pdata.height;y++){
+
+      //index of pixel in array
+      var idx=(x+y*s.width)*4;
+
+      //rgb values
+      var r=pdata.data[idx+0];
+      var g=pdata.data[idx+1];
+      var b=pdata.data[idx+2];
+
+      red.push(r);
+      green.push(g);
+      blue.push(b);
+    }
+    redD.push(red);
+    greenD.push(green);
+    blueD.push(blue);
+  }
+  var temp=new Array();
+  temp.push(redD);
+  temp.push(greenD);
+  temp.push(blueD);
+  return temp;
+}
+
+function graphingG(color,entry,stat){
+  var avg=0, standev=0;
+  context2.strokeStyle=color;
+  context2.lineWidth=1;
+  context2.beginPath();
+  context2.moveTo(50,ymaxG*yscaleG-entry[clickx][clicky]);
+  for(var i=1;i<(xmaxG-xminG);i++){
+            var y=entry[i+clickx][clicky];
+            context2.lineTo((i*xscaleG)+50,ymaxG*yscaleG-y*yscaleG);
+            avg+=y;
+
+            }
+            avg=avg/xmaxG;
+
+            for(var i=1;i<(xmaxG-xminG);i++){
+            var y=entry[i+clickx][clicky];
+            var temp=Math.pow((y-avg),2.0);
+            standev+=temp;
+            }
+            standev=Math.pow((standev/xmaxG*1.0),.5);
+
+            context2.stroke();
+
+            }
+
+
+
+    </script>
+
+
+
+  </body>
+</html>
